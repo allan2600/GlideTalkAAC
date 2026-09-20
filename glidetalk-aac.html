@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>GlideTalk AAC</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none; /* Disables page scrolling and pinch-zooming */
+    }
+
+    /* Enforce rigid pointer stability - no child elements register hits */
+    .speech-tile *, 
+    .hub-tile *, 
+    .drawer-btn *,
+    #progress-canvas {
+      pointer-events: none !important;
+    }
+
+    body {
+      margin: 0;
+      padding: 12px;
+      height: 100vh;
+      width: 100vw;
+      background-color: #0F172A;
+      color: #F8FAFC;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+      position: fixed;
+    }
+
+    /* Start Screen Overlay to unlock Web Audio context */
+    #start-overlay {
+      position: fixed;
+      inset: 0;
+      background: #0F172A;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      gap: 20px;
+    }
+
+    #start-btn {
+      font-size: 2rem;
+      padding: 24px 48px;
+      background-color: #2563EB;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+    }
+
+    /* Header & Category Drawers */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 60px;
+      gap: 12px;
+    }
+
+    .category-drawers {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      overflow-x: auto;
+      height: 100%;
+    }
+
+    .drawer-btn {
+      flex: 1;
+      min-width: 90px;
+      background-color: #1E293B;
+      border: 3px solid #334155;
+      border-radius: 12px;
+      color: white;
+      font-size: 1.1rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      /* Absolutely NO layout-shifting transforms or scale transitions */
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .drawer-btn.active {
+      background-color: #2563EB;
+      border-color: #60A5FA;
+      box-shadow: inset 0 0 10px rgba(255,255,255,0.3);
+    }
+
+    #settings-btn {
+      width: 60px;
+      height: 100%;
+      background-color: #334155;
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 1.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Viewport Area for Grid / Radial Boards */
+    #board-container {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Progress Overlay Canvas for Dwell Ring */
+    #progress-canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 500;
+    }
+
+    /* GRID LAYOUT */
+    .grid-board {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 16px;
+      width: 100%;
+      height: 100%;
+    }
+
+    .speech-tile {
+      background-color: #1E293B;
+      border: 6px solid #334155;
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      color: #FFFFFF;
+      position: relative;
+      /* Fixed layout properties - no scale/movement on activation */
+      box-sizing: border-box;
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .speech-tile .emoji {
+      font-size: 4rem;
+      line-height: 1;
+    }
+
+    .speech-tile .label {
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+
+    /* Static activation highlights without position offset */
+    .speech-tile.active {
+      background-color: #1E40AF;
+      border-color: #60A5FA;
+      box-shadow: inset 0 0 20px rgba(96, 165, 250, 0.5);
+    }
+
+    .speech-tile.triggered {
+      background-color: #15803D;
+      border-color: #4ADE80;
+    }
+
+    /* RADIAL LAYOUT - STRICTLY STATIONARY POSITIONS */
+    .radial-board {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .hub-tile {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 140px;
+      height: 140px;
+      margin-top: -70px;
+      margin-left: -70px;
+      background-color: #0F172A;
+      border: 6px solid #38BDF8;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      box-sizing: border-box;
+    }
+
+    .hub-tile.active {
+      background-color: #0284C7;
+      border-color: #7DD3FC;
+    }
+
+    .radial-tile {
+      position: absolute;
+      width: 130px;
+      height: 130px;
+      margin-top: -65px;
+      margin-left: -65px;
+      border-radius: 50%;
+      background-color: #1E293B;
+      border: 6px solid #334155;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      box-sizing: border-box;
+    }
+
+    /* Settings Panel Overlay */
+    #settings-panel {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.95);
+      z-index: 2000;
+      display: none;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .settings-content {
+      max-width: 600px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .setting-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .setting-group label {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+
+    .setting-group input, .setting-group select, .setting-group textarea {
+      padding: 12px;
+      border-radius: 8px;
+      border: 2px solid #334155;
+      background: #1E293B;
+      color: white;
+      font-size: 1rem;
+    }
+
+    textarea {
+      height: 160px;
+      font-family: monospace;
+    }
+
+    .close-btn {
+      padding: 16px;
+      background: #2563EB;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="start-overlay">
+    <h1>GlideTalk AAC</h1>
+    <p>Trace continuously to speak</p>
+    <button id="start-btn">Touch Anywhere to Start</button>
+  </div>
+
+  <header>
+    <div class="category-drawers" id="drawers-container"></div>
+    <button id="settings-btn">⚙️</button>
+  </header>
+
+  <div id="board-container">
+    <canvas id="progress-canvas"></canvas>
+    <div id="board" class="grid-board"></div>
+  </div>
+
+  <div id="settings-panel">
+    <div class="settings-content">
+      <h2>App Configuration</h2>
+
+      <div class="setting-group">
+        <label for="layout-mode">Layout Style</label>
+        <select id="layout-mode">
+          <option value="grid">Grid Board (4 Large Tiles)</option>
+          <option value="radial">Radial Wheel (Center Hub Switcher)</option>
+        </select>
+      </div>
+
+      <div class="setting-group">
+        <label for="dwell-input">Dwell Activation Time (ms)</label>
+        <input type="number" id="dwell-input" value="400" step="50" min="0">
+      </div>
+
+      <div class="setting-group">
+        <label for="deadzone-input">Dead-Zone Padding (px)</label>
+        <input type="number" id="deadzone-input" value="15" step="5" min="0">
+      </div>
+
+      <div class="setting-group">
+        <label for="json-input">JSON Configuration File</label>
+        <textarea id="json-input"></textarea>
+      </div>
+
+      <button class="close-btn" id="save-settings">Save &amp; Close</button>
+    </div>
+  </div>
+
+  <script>
+    // Default Configuration with Categories & Emojis
+    let appConfig = {
+      dwellTimeMs: 400,
+      deadZonePx: 15,
+      layout: "grid",
+      categories: [
+        {
+          id: "basic",
+          name: "Basic",
+          icon: "💬",
+          tiles: [
+            { label: "Yes", emoji: "👍", phrase: "Yes" },
+            { label: "No", emoji: "👎", phrase: "No" },
+            { label: "Help", emoji: "🙋‍♂️", phrase: "I need help" },
+            { label: "More", emoji: "🔄", phrase: "More please" }
+          ]
+        },
+        {
+          id: "needs",
+          name: "Needs",
+          icon: "🚰",
+          tiles: [
+            { label: "Water", emoji: "💧", phrase: "I want water" },
+            { label: "Food", emoji: "🍲", phrase: "I am hungry" },
+            { label: "Rest", emoji: "🛋️", phrase: "I need to rest" },
+            { label: "Bathroom", emoji: "🚽", phrase: "I need the bathroom" }
+          ]
+        },
+        {
+          id: "feelings",
+          name: "Feelings",
+          icon: "😊",
+          tiles: [
+            { label: "Happy", emoji: "😊", phrase: "I feel happy" },
+            { label: "Pain", emoji: "😣", phrase: "I am in pain" },
+            { label: "Tired", emoji: "🥱", phrase: "I am tired" },
+            { label: "Cold", emoji: "🥶", phrase: "I am cold" }
+          ]
+        }
+      ]
+    };
+
+    let currentCategoryIndex = 0;
+    let activeTarget = null;
+    let dwellTimer = null;
+    let dwellStartTime = 0;
+    let animFrame = null;
+
+    const board = document.getElementById('board');
+    const drawersContainer = document.getElementById('drawers-container');
+    const canvas = document.getElementById('progress-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Resize progress overlay canvas dynamically
+    function resizeCanvas() {
+      canvas.width = board.clientWidth;
+      canvas.height = board.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Render Category Header Drawers
+    function renderDrawers() {
+      drawersContainer.innerHTML = '';
+      appConfig.categories.forEach((cat, index) => {
+        const btn = document.createElement('div');
+        btn.className = `drawer-btn ${index === currentCategoryIndex ? 'active' : ''}`;
+        btn.dataset.categoryIndex = index;
+        btn.innerHTML = `<span>${cat.icon}</span> <span>${cat.name}</span>`;
+        drawersContainer.appendChild(btn);
+      });
+    }
+
+    // Render Active Board (Grid or Radial)
+    function renderBoard() {
+      board.innerHTML = '';
+      const currentCat = appConfig.categories[currentCategoryIndex];
+
+      if (appConfig.layout === 'grid') {
+        board.className = 'grid-board';
+        currentCat.tiles.slice(0, 4).forEach(tileData => {
+          const tile = document.createElement('div');
+          tile.className = 'speech-tile';
+          tile.dataset.phrase = tileData.phrase;
+          tile.innerHTML = `<span class="emoji">${tileData.emoji}</span><span class="label">${tileData.label}</span>`;
+          board.appendChild(tile);
+        });
+      } else {
+        board.className = 'radial-board';
+        
+        // Render Central Hub for Switching Categories
+        const hub = document.createElement('div');
+        hub.className = 'hub-tile';
+        hub.dataset.isHub = 'true';
+        hub.innerHTML = `<span style="font-size: 2.5rem;">${currentCat.icon}</span><span style="font-weight: bold; margin-top: 4px;">${currentCat.name}</span>`;
+        board.appendChild(hub);
+
+        // Render Orbiting Radial Tiles
+        const tiles = currentCat.tiles;
+        const total = Math.min(tiles.length, 6);
+        const radius = Math.min(board.clientWidth, board.clientHeight) * 0.32;
+        const centerX = board.clientWidth / 2;
+        const centerY = board.clientHeight / 2;
+
+        tiles.slice(0, total).forEach((tileData, i) => {
+          const angle = (i * (2 * Math.PI / total)) - (Math.PI / 2);
+          const x = centerX + radius * Math.cos(angle);
+          const y = centerY + radius * Math.sin(angle);
+
+          const tile = document.createElement('div');
+          tile.className = 'speech-tile radial-tile';
+          tile.style.left = `${x}px`;
+          tile.style.top = `${y}px`;
+          tile.dataset.phrase = tileData.phrase;
+          tile.innerHTML = `<span class="emoji" style="font-size: 2.5rem;">${tileData.emoji}</span><span class="label" style="font-size: 1.1rem;">${tileData.label}</span>`;
+          board.appendChild(tile);
+        });
+      }
+      setTimeout(resizeCanvas, 50);
+    }
+
+    // Core Pointer Handling Engine
+    function handlePointerMove(e) {
+      // Direct hit resolution via screen coordinates
+      const rawTarget = document.elementFromPoint(e.clientX, e.clientY);
+      if (!rawTarget) return;
+
+      // Resolve valid interactable boundary target
+      const target = rawTarget.closest('.speech-tile, .hub-tile, .drawer-btn');
+      
+      if (target) {
+        // Apply dead-zone margin check to prevent edge jitter
+        const rect = target.getBoundingClientRect();
+        const pad = appConfig.deadZonePx;
+        const insideInnerBounds = (
+          e.clientX >= rect.left + pad &&
+          e.clientX <= rect.right - pad &&
+          e.clientY >= rect.top + pad &&
+          e.clientY <= rect.bottom - pad
+        );
+
+        if (!insideInnerBounds && pad > 0) {
+          clearActiveState();
+          return;
+        }
+      }
+
+      // Check if target has changed
+      if (target !== activeTarget) {
+        clearActiveState();
+
+        if (target) {
+          activeTarget = target;
+          activeTarget.classList.add('active');
+          dwellStartTime = Date.now();
+          
+          if (appConfig.dwellTimeMs > 0) {
+            dwellTimer = setTimeout(() => triggerActivation(activeTarget), appConfig.dwellTimeMs);
+            animateProgress();
+          } else {
+            triggerActivation(activeTarget);
+          }
+        }
+      }
+    }
+
+    function animateProgress() {
+      if (!activeTarget || appConfig.dwellTimeMs <= 0) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const elapsed = Date.now() - dwellStartTime;
+      const progress = Math.min(elapsed / appConfig.dwellTimeMs, 1);
+
+      const rect = activeTarget.getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
+      
+      // Calculate relative position to overlay canvas
+      const cx = rect.left - boardRect.left + rect.width / 2;
+      const cy = rect.top - boardRect.top + rect.height / 2;
+      const r = Math.min(rect.width, rect.height) / 2 - 8;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, -Math.PI / 2, (-Math.PI / 2) + (Math.PI * 2 * progress));
+      ctx.strokeStyle = '#60A5FA';
+      ctx.lineWidth = 10;
+      ctx.stroke();
+
+      if (progress < 1) {
+        animFrame = requestAnimationFrame(animateProgress);
+      }
+    }
+
+    function triggerActivation(target) {
+      target.classList.remove('active');
+      target.classList.add('triggered');
+      setTimeout(() => target.classList.remove('triggered'), 300);
+
+      if (target.dataset.isHub) {
+        // Hub tile cycles categories in Radial Mode
+        currentCategoryIndex = (currentCategoryIndex + 1) % appConfig.categories.length;
+        renderDrawers();
+        renderBoard();
+      } else if (target.classList.contains('drawer-btn')) {
+        // Direct category drawer selection
+        currentCategoryIndex = parseInt(target.dataset.categoryIndex, 10);
+        renderDrawers();
+        renderBoard();
+      } else if (target.dataset.phrase) {
+        // Speech activation
+        speakPhrase(target.dataset.phrase);
+      }
+
+      clearActiveState();
+    }
+
+    function clearActiveState() {
+      if (dwellTimer) clearTimeout(dwellTimer);
+      if (animFrame) cancelAnimationFrame(animFrame);
+      dwellTimer = null;
+      animFrame = null;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (activeTarget) {
+        activeTarget.classList.remove('active');
+        activeTarget = null;
+      }
+    }
+
+    function speakPhrase(phrase) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(phrase);
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    // Touch and Pointer Event Listeners
+    document.addEventListener('pointerdown', handlePointerMove);
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', clearActiveState);
+    document.addEventListener('pointercancel', clearActiveState);
+
+    // Audio context unlock handler
+    document.getElementById('start-btn').addEventListener('click', () => {
+      document.getElementById('start-overlay').style.display = 'none';
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+      }
+      renderDrawers();
+      renderBoard();
+    });
+
+    // Settings Panel Controls
+    const settingsPanel = document.getElementById('settings-panel');
+    const jsonInput = document.getElementById('json-input');
+
+    document.getElementById('settings-btn').addEventListener('click', () => {
+      document.getElementById('layout-mode').value = appConfig.layout;
+      document.getElementById('dwell-input').value = appConfig.dwellTimeMs;
+      document.getElementById('deadzone-input').value = appConfig.deadZonePx;
+      jsonInput.value = JSON.stringify(appConfig.categories, null, 2);
+      settingsPanel.style.display = 'block';
+    });
+
+    document.getElementById('save-settings').addEventListener('click', () => {
+      appConfig.layout = document.getElementById('layout-mode').value;
+      appConfig.dwellTimeMs = parseInt(document.getElementById('dwell-input').value, 10) || 0;
+      appConfig.deadZonePx = parseInt(document.getElementById('deadzone-input').value, 10) || 0;
+
+      try {
+        appConfig.categories = JSON.parse(jsonInput.value);
+        currentCategoryIndex = 0;
+      } catch (err) {
+        alert('Invalid JSON config format. Preserving prior setup.');
+      }
+
+      settingsPanel.style.display = 'none';
+      renderDrawers();
+      renderBoard();
+    });
+  </script>
+</body>
+</html>
