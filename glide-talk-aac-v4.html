@@ -22,8 +22,7 @@
 
     body {
       margin: 0;
-      /* Doubled top spacing accounts generously for Android time/status bar and bookmarks bar */
-      padding: calc(32px + env(safe-area-inset-top, 0px)) 16px 16px 16px;
+      padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 12px;
       height: 100vh;
       width: 100vw;
       background-color: #0F172A;
@@ -38,21 +37,18 @@
 
     /* Responsive Grid Screen Container */
     .screen-container {
-      /* Scale container to 85% of visible viewport height */
-      height: 85vh;
-      max-height: 85vh;
-      
-      /* Ensure content centers within the viewport */
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      max-height: 100%;
       margin: 0 auto;
       overflow: hidden; 
-      
-      /* Maintain responsive grid flow */
-      display: grid;
-      grid-template-rows: repeat(auto-fit, minmax(0, 1fr));
-      gap: 1rem;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
 
-    /* Start Screen Overlay to unlock Web Audio context */
+    /* Start Screen Overlay */
     #start-overlay {
       position: fixed;
       inset: 0;
@@ -66,8 +62,8 @@
     }
 
     #start-btn {
-      font-size: 2rem;
-      padding: 24px 48px;
+      font-size: clamp(1.2rem, 3vw, 2rem);
+      padding: 18px 36px;
       background-color: #2563EB;
       color: white;
       border: none;
@@ -77,12 +73,12 @@
       box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
     }
 
-    /* Header & Category Drawers - Constrained Height */
+    /* Header & Category Drawers */
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      height: 54px;
+      height: clamp(40px, 8vh, 54px);
       gap: 12px;
       flex-shrink: 0;
     }
@@ -97,12 +93,12 @@
 
     .drawer-btn {
       flex: 1;
-      min-width: 90px;
+      min-width: 80px;
       background-color: #1E293B;
-      border: 3px solid #334155;
+      border: 2px solid #334155;
       border-radius: 12px;
       color: white;
-      font-size: 1.1rem;
+      font-size: clamp(0.8rem, 2vw, 1.1rem);
       font-weight: bold;
       display: flex;
       align-items: center;
@@ -118,13 +114,13 @@
     }
 
     #settings-btn {
-      width: 54px;
+      width: clamp(40px, 8vh, 54px);
       height: 100%;
       background-color: #334155;
       border: none;
       border-radius: 12px;
       color: white;
-      font-size: 1.8rem;
+      font-size: clamp(1.2rem, 3vw, 1.8rem);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -146,39 +142,48 @@
       z-index: 500;
     }
 
-    /* GRID LAYOUT */
+    /* REACTIVE GRID LAYOUT */
     .grid-board {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-template-rows: repeat(2, 1fr);
-      gap: 16px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 12px;
       width: 100%;
       height: 100%;
     }
 
     .speech-tile {
       background-color: #1E293B;
-      border: 6px solid #334155;
-      border-radius: 24px;
+      border: clamp(3px, 0.8vw, 6px) solid #334155;
+      border-radius: clamp(12px, 2.5vw, 24px);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      gap: 8px;
+      gap: 4px;
       color: #FFFFFF;
       position: relative;
       box-sizing: border-box;
       transition: background-color 0.15s, border-color 0.15s;
+      
+      /* Enable Container Queries to scale internal font size relative to tile size */
+      container-type: inline-size;
+      width: 100%;
+      height: 100%;
     }
 
+    /* Fluid Tile Text & Emoji Scaling */
     .speech-tile .emoji {
-      font-size: 3.8rem;
+      font-size: clamp(1.8rem, 22cqw, 4.5rem);
       line-height: 1;
     }
 
     .speech-tile .label {
-      font-size: 1.7rem;
+      font-size: clamp(0.9rem, 10cqw, 2rem);
       font-weight: bold;
+      text-align: center;
+      padding: 0 4px;
+      word-break: break-word;
     }
 
     /* Active hover and trigger highlights */
@@ -193,7 +198,7 @@
       border-color: #4ADE80;
     }
 
-    /* RADIAL LAYOUT - STATIONARY POSITIONS */
+    /* REACTIVE RADIAL LAYOUT */
     .radial-board {
       position: relative;
       width: 100%;
@@ -204,12 +209,11 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 130px;
-      height: 130px;
-      margin-top: -65px;
-      margin-left: -65px;
+      width: clamp(80px, 22vh, 140px);
+      height: clamp(80px, 22vh, 140px);
+      transform: translate(-50%, -50%);
       background-color: #0F172A;
-      border: 6px solid #38BDF8;
+      border: clamp(3px, 0.6vw, 6px) solid #38BDF8;
       border-radius: 50%;
       display: flex;
       flex-direction: column;
@@ -217,6 +221,16 @@
       align-items: center;
       z-index: 100;
       box-sizing: border-box;
+      container-type: inline-size;
+    }
+
+    .hub-tile .hub-icon {
+      font-size: clamp(1.4rem, 28cqw, 2.5rem);
+    }
+
+    .hub-tile .hub-label {
+      font-size: clamp(0.7rem, 12cqw, 1.1rem);
+      font-weight: bold;
     }
 
     .hub-tile.active {
@@ -226,13 +240,12 @@
 
     .radial-tile {
       position: absolute;
-      width: 120px;
-      height: 120px;
-      margin-top: -60px;
-      margin-left: -60px;
+      width: clamp(70px, 18vh, 120px);
+      height: clamp(70px, 18vh, 120px);
+      transform: translate(-50%, -50%);
       border-radius: 50%;
       background-color: #1E293B;
-      border: 6px solid #334155;
+      border: clamp(3px, 0.6vw, 6px) solid #334155;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -249,7 +262,7 @@
       display: none;
       padding: calc(24px + env(safe-area-inset-top, 0px)) 24px 24px 24px;
       overflow-y: auto;
-      touch-action: pan-y !important; /* Permits vertical scrolling inside settings overlay */
+      touch-action: pan-y !important;
     }
 
     .settings-content {
@@ -283,7 +296,7 @@
       font-size: 1rem;
       user-select: text !important;
       -webkit-user-select: text !important;
-      touch-action: pan-y !important; /* Enables smooth native vertical scrolling for text area */
+      touch-action: pan-y !important;
       pointer-events: auto !important;
     }
 
@@ -314,14 +327,16 @@
     <button id="start-btn">Touch Anywhere to Start</button>
   </div>
 
-  <header>
-    <div class="category-drawers" id="drawers-container"></div>
-    <button id="settings-btn">⚙️</button>
-  </header>
+  <div class="screen-container">
+    <header>
+      <div class="category-drawers" id="drawers-container"></div>
+      <button id="settings-btn">⚙️</button>
+    </header>
 
-  <div id="board-container" class="screen-container">
-    <canvas id="progress-canvas"></canvas>
-    <div id="board" class="grid-board"></div>
+    <div id="board-container">
+      <canvas id="progress-canvas"></canvas>
+      <div id="board" class="grid-board"></div>
+    </div>
   </div>
 
   <div id="settings-panel">
@@ -402,7 +417,7 @@
     
     // Gesture & Latched State Tracker
     let activeTarget = null;
-    let hasTriggered = false; // Internal latch flag
+    let hasTriggered = false;
     let dwellTimer = null;
     let dwellStartTime = 0;
     let animFrame = null;
@@ -417,7 +432,10 @@
       canvas.width = board.clientWidth;
       canvas.height = board.clientHeight;
     }
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      if (appConfig.layout === 'radial') renderBoard();
+    });
 
     function renderDrawers() {
       drawersContainer.innerHTML = '';
@@ -449,12 +467,12 @@
         const hub = document.createElement('div');
         hub.className = 'hub-tile';
         hub.dataset.isHub = 'true';
-        hub.innerHTML = `<span style="font-size: 2.2rem;">${currentCat.icon}</span><span style="font-weight: bold; margin-top: 2px;">${currentCat.name}</span>`;
+        hub.innerHTML = `<span class="hub-icon">${currentCat.icon}</span><span class="hub-label">${currentCat.name}</span>`;
         board.appendChild(hub);
 
         const tiles = currentCat.tiles;
         const total = Math.min(tiles.length, 6);
-        const radius = Math.min(board.clientWidth, board.clientHeight) * 0.32;
+        const radius = Math.min(board.clientWidth, board.clientHeight) * 0.33;
         const centerX = board.clientWidth / 2;
         const centerY = board.clientHeight / 2;
 
@@ -468,7 +486,7 @@
           tile.style.left = `${x}px`;
           tile.style.top = `${y}px`;
           tile.dataset.phrase = tileData.phrase;
-          tile.innerHTML = `<span class="emoji" style="font-size: 2.2rem;">${tileData.emoji}</span><span class="label" style="font-size: 1rem;">${tileData.label}</span>`;
+          tile.innerHTML = `<span class="emoji">${tileData.emoji}</span><span class="label">${tileData.label}</span>`;
           board.appendChild(tile);
         });
       }
@@ -477,7 +495,6 @@
 
     // Single-Touch Tracking Gesture Engine
     function handlePointerMove(e) {
-      // Ignore trace gestures while settings overlay is open
       if (settingsPanel.style.display === 'block') return;
 
       const rawTarget = document.elementFromPoint(e.clientX, e.clientY);
@@ -486,7 +503,6 @@
       const target = rawTarget.closest('.speech-tile, .hub-tile, .drawer-btn');
       
       if (target) {
-        // Dead-zone boundary padding check
         const rect = target.getBoundingClientRect();
         const pad = appConfig.deadZonePx;
         const insideInnerBounds = (
@@ -502,13 +518,12 @@
         }
       }
 
-      // Check if finger moved into a DIFFERENT tile
       if (target !== activeTarget) {
         clearActiveState();
 
         if (target) {
           activeTarget = target;
-          hasTriggered = false; // Reset trigger latch for new tile
+          hasTriggered = false;
           activeTarget.classList.add('active');
           
           dwellStartTime = Date.now();
@@ -539,7 +554,7 @@
       ctx.beginPath();
       ctx.arc(cx, cy, r, -Math.PI / 2, (-Math.PI / 2) + (Math.PI * 2 * progress));
       ctx.strokeStyle = '#60A5FA';
-      ctx.lineWidth = 10;
+      ctx.lineWidth = Math.max(4, rect.width * 0.05);
       ctx.stroke();
 
       if (progress < 1) {
@@ -550,7 +565,6 @@
     function triggerActivation(target) {
       if (hasTriggered) return;
 
-      // Set latched triggered state to PREVENT repeating sound
       hasTriggered = true;
       if (dwellTimer) clearTimeout(dwellTimer);
       if (animFrame) cancelAnimationFrame(animFrame);
@@ -562,7 +576,6 @@
       target.classList.add('triggered');
       setTimeout(() => target.classList.remove('triggered'), 400);
 
-      // Play sound / speak phrase once
       if (target.dataset.isHub) {
         currentCategoryIndex = (currentCategoryIndex + 1) % appConfig.categories.length;
         renderDrawers();
@@ -599,13 +612,11 @@
       }
     }
 
-    // Pointer events handle continuous movement and touch release
     document.addEventListener('pointerdown', handlePointerMove);
     document.addEventListener('pointermove', handlePointerMove);
     document.addEventListener('pointerup', clearActiveState);
     document.addEventListener('pointercancel', clearActiveState);
 
-    // Initial Start Button to enable speech audio context
     document.getElementById('start-btn').addEventListener('click', () => {
       document.getElementById('start-overlay').style.display = 'none';
       if ('speechSynthesis' in window) {
@@ -615,7 +626,6 @@
       renderBoard();
     });
 
-    // Settings Panel Controls
     const jsonInput = document.getElementById('json-input');
 
     document.getElementById('settings-btn').addEventListener('click', () => {
